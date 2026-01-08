@@ -1,7 +1,13 @@
 command! RosettaTranslateComment call rosetta#translate_comment()
-nnoremap <silent> <plug>(rosetta-translate-comment) :<C-u>call rosetta#translate_comment()<CR>
+nnoremap <silent> <plug>(rosetta-translate-comment) :<C-u>call rosetta#translate_comment()<cr>
 if !hasmapto('<plug>(rosetta-translate-comment)')
-  nmap <Leader>rt <plug>(rosetta-translate-comment)
+  nmap <Leader>tc <plug>(rosetta-translate-comment)
+endif
+nnoremap <silent> <plug>(rosetta-translate-at) :<C-u>call rosetta#translate_at(0)<cr>
+xnoremap <silent> <plug>(rosetta-translate-at) :<C-u>call rosetta#translate_at(1)<cr>
+if !hasmapto('<plug>(rosetta-translate-at)')
+  nmap <Leader>tt <plug>(rosetta-translate-at)
+  xmap <Leader>tt <plug>(rosetta-translate-at)
 endif
 
 if get(g:, 'rosetta_translate_comment_auto', 0)

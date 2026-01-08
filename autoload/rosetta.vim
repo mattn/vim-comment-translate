@@ -138,7 +138,7 @@ function! s:get_comment_at_cursor() abort
   return l:comment
 endfunction
 
-function! s:translate_text_list(source_lang, target_lang, text) abort
+function! s:translate_api(source_lang, target_lang, text) abort
   if empty(a:text)
     return []
   endif
@@ -155,7 +155,7 @@ function! s:translate_text(text, ...) abort
   try
     let l:source_lang = 'auto'
     let l:target_lang = a:0 > 0 ? a:1 : get(g:, 'rosetta_target_lang', 'ja')
-    let l:items = s:translate_text_list(l:source_lang, l:target_lang, a:text)
+    let l:items = s:translate_api(l:source_lang, l:target_lang, a:text)
     if type(l:items) != v:t_list || empty(l:items) || type(l:items[0]) != v:t_list
       return 'Translation failed'
     endif
@@ -193,6 +193,18 @@ endfunction
 " ============================================================================
 " Comment Translation Feature
 " ============================================================================
+function! rosetta#translate_at(select) abort
+  if a:select
+    let l:saved_reg = @"
+    silent! normal! gv""y
+    let l:word = @"
+    let @" = l:saved_reg
+  else
+    let l:word = expand('<cword>')
+  endif
+  let l:translation = s:translate_text(l:word)
+  call s:show_translation_popup(l:translation)
+endfunction
 
 " Main function: translate comment at cursor
 function! rosetta#translate_comment() abort
@@ -262,7 +274,7 @@ function! rosetta#complete_name() abort
 
   let l:source_lang = get(g:, 'rosetta_target_lang', 'ja')
   let l:target_lang = 'auto'
-  let l:items = s:translate_text_list(l:source_lang, l:target_lang, l:base)
+  let l:items = s:translate_api(l:source_lang, l:target_lang, l:base)
 
   let l:completions = []
   for l:item in l:items[0]
