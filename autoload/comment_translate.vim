@@ -25,6 +25,10 @@ function! s:urlencode(items) abort
   return ret
 endfunction
 
+function! comment_translate#comment_at_cursor() abort
+  return s:comment_at_cursor()
+endfunction
+
 function! s:comment_at_cursor() abort
   let l:line = line('.')
   let l:col = col('.')
@@ -104,14 +108,26 @@ function! s:comment_at_cursor() abort
   endfor
 
   let l:comment = join(l:lines, ' ')
-  let l:comment = substitute(l:comment, '^\s*/\*\+\s*', '', '')
-  let l:comment = substitute(l:comment, '\s*\*\+/\s*$', '', '')
-  let l:comment = substitute(l:comment, '^\s*//\+\s*', '', '')
-  let l:comment = substitute(l:comment, '^\s*#\+\s*', '', '')
-  let l:comment = substitute(l:comment, '^\s*"\s*', '', '')
+  let l:comment = trim(l:comment)
+
+  " Detect comment type and strip markers
+  if l:comment =~# '^/\*'
+    " Block comment /* ... */
+    let l:comment = substitute(l:comment, '^/\*\+\s*', '', '')
+    let l:comment = substitute(l:comment, '\s*\*\+/$', '', '')
+  elseif l:comment =~# '^//'
+    " Line comment //
+    let l:comment = substitute(l:comment, '^//\+\s*', '', '')
+  elseif l:comment =~# '^#'
+    " Line comment #
+    let l:comment = substitute(l:comment, '^#\+\s*', '', '')
+  elseif l:comment =~# '^"'
+    " Line comment "
+    let l:comment = substitute(l:comment, '^"\s*', '', '')
+  endif
+
   let l:comment = substitute(l:comment, '\s\+', ' ', 'g')
-  let l:comment = substitute(l:comment, '^\s*', '', '')
-  let l:comment = substitute(l:comment, '\s*$', '', '')
+  let l:comment = trim(l:comment)
 
   return l:comment
 endfunction
