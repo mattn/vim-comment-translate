@@ -133,6 +133,7 @@ Example:
   - `hello_world` (snake_case)
   - `HELLO_WORLD` (UPPER_CASE)
   - `helloWorld` (camelCase)
+  - `HelloWorld` (CamelCase)
 
 ## How It Works
 
