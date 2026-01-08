@@ -6,7 +6,7 @@ A Vim plugin that provides translation features for code comments and variable n
 
 - **Comment Translation**: Translate code comments under the cursor to any language
 - **Auto Translation**: Automatically translate comments on cursor hold
-- **Variable Name Completion**: Japanese to English translation for variable naming (snake_case)
+- **Variable Name Completion**: Japanese to English translation for variable naming (snake_case, UPPER_CASE, camelCase)
 - Supports multi-line comments
 - Works with various comment styles (`//`, `/* */`, `#`, `"`)
 
@@ -122,26 +122,15 @@ nmap <C-t> <Plug>(rosetta-translate-comment)
 
 ### Variable Name Completion
 
-Enable Japanese to English translation completion in insert mode:
-
-```vim
-let g:rosetta_enable_variable_completion = 1
-```
-
-Type Japanese text and press `<C-x><C-t>` to complete with snake_case English translation.
-
-#### Custom Completion Key
-
-Change the completion trigger key (default: `<C-x><C-t>`):
-
-```vim
-let g:rosetta_variable_complete_key = '<C-k>'
-```
+Type Japanese text and press `<C-x><C-t>` to complete with English translation in multiple formats.
 
 Example:
 - Type: `こんにちは世界`
 - Press: `<C-x><C-t>`
-- Result: `hello_world`
+- Completion options:
+  - `hello_world` (snake_case)
+  - `HELLO_WORLD` (UPPER_CASE)
+  - `helloWorld` (camelCase)
 
 ## How It Works
 
@@ -154,8 +143,8 @@ Example:
 ### Variable Name Completion
 1. Extracts Japanese text before cursor
 2. Translates to English using Google Translate API
-3. Converts to snake_case format
-4. Provides as completion candidate
+3. Converts to multiple naming formats (snake_case, UPPER_CASE, camelCase)
+4. Provides as completion candidates
 
 ## License
 
@@ -163,4 +152,4 @@ MIT
 
 ## Author
 
-Yasuhiro Matsumoto ([@mattn](https://github.com/mattn))
+Yasuhiro Matsumoto (a.k.a. mattn)
