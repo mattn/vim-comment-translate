@@ -238,12 +238,12 @@ function! s:to_snake_case(text) abort
   return l:text
 endfunction
 
-function! s:to_camel_case(text) abort
-  let l:words = split(a:text, '[-_]\+')
+function! s:to_camel_case(text, lower_first) abort
+  let l:words = split(a:text, '[-_ ]\+')
   let l:camel = []
   for l:i in range(len(l:words))
     let l:word = l:words[l:i]
-    if l:i == 0
+    if l:i == 0 && !a:lower_first
       call add(l:camel, tolower(l:word))
     else
       call add(l:camel, toupper(l:word[0]) . tolower(l:word[1:]))
@@ -274,7 +274,8 @@ function! rosetta#complete_name() abort
       let l:snake = s:to_snake_case(l:translation)
       call add(l:completions, l:snake)
       call add(l:completions, toupper(l:snake))
-      call add(l:completions, s:to_camel_case(l:translation))
+      call add(l:completions, s:to_camel_case(l:translation, 0))
+      call add(l:completions, s:to_camel_case(l:translation, 1))
     endif
   endfor
   call complete(l:start + 1, uniq(l:completions))
