@@ -1,13 +1,13 @@
-# vim-comment-translate
+# vim-rosetta
 
-A Vim plugin that translates code comments under the cursor using Google Translate API.
+A Vim plugin that provides translation features for code comments and variable naming using Google Translate API.
 
 ## Features
 
-- Automatically detects comments at cursor position
+- **Comment Translation**: Translate code comments under the cursor to any language
+- **Auto Translation**: Automatically translate comments on cursor hold
+- **Variable Name Completion**: Japanese to English translation for variable naming (snake_case)
 - Supports multi-line comments
-- Shows translation in a popup window
-- Optional auto-translation on cursor hold
 - Works with various comment styles (`//`, `/* */`, `#`, `"`)
 
 ## Installation
@@ -15,7 +15,21 @@ A Vim plugin that translates code comments under the cursor using Google Transla
 ### Using [vim-plug](https://github.com/junegunn/vim-plug)
 
 ```vim
-Plug 'mattn/vim-comment-translate'
+Plug 'mattn/vim-rosetta'
+```
+
+### Using [dein.vim](https://github.com/Shougo/dein.vim)
+
+```vim
+call dein#add('mattn/vim-rosetta')
+```
+
+### Using Vim 8+ native package manager
+
+```bash
+mkdir -p ~/.vim/pack/plugins/start
+cd ~/.vim/pack/plugins/start
+git clone https://github.com/mattn/vim-rosetta.git
 ```
 
 ## Requirements
@@ -25,18 +39,18 @@ Plug 'mattn/vim-comment-translate'
 
 ## Usage
 
-### Manual Translation
+### Comment Translation
 
 Place your cursor on a comment and run:
 
 ```vim
-:CommentTranslate
+:RosettaTranslateComment
 ```
 
 Or use the default mapping:
 
 ```vim
-<Leader>ct
+<Leader>rt
 ```
 
 ### Auto Translation
@@ -44,43 +58,45 @@ Or use the default mapping:
 Enable automatic translation when cursor stops on a comment:
 
 ```vim
-let g:comment_translate_auto = 1
+let g:rosetta_translate_comment_auto = 1
 ```
 
 ## Configuration
 
-### Target Language
+### Comment Translation Settings
+
+#### Target Language
 
 Set the target language for translation (default: `ja` for Japanese):
 
 ```vim
-let g:comment_translate_target_lang = 'en'
+let g:rosetta_target_lang = 'en'
 ```
 
 Supported language codes: `en`, `ja`, `zh-CN`, `ko`, `es`, `fr`, `de`, etc.
 
-### Popup Window Width
+#### Popup Window Width
 
 Customize the maximum width of the popup window (default: 80):
 
 ```vim
-let g:comment_translate_popup_max_width = 100
+let g:rosetta_popup_max_width = 100
 ```
 
-### Trim Spaces
+#### Trim Spaces
 
 Control whether to collapse multiple spaces into single space (default: 1):
 
 ```vim
-let g:comment_translate_trim_spaces = 0  " Keep original spacing
+let g:rosetta_trim_spaces = 0  " Keep original spacing
 ```
 
-### Strip C-Style Comment Asterisks
+#### Strip C-Style Comment Asterisks
 
 Remove leading `*` from each line in C-style block comments (default: 0):
 
 ```vim
-let g:comment_translate_strip_c_style = 1
+let g:rosetta_strip_c_style = 1
 ```
 
 Example:
@@ -96,13 +112,50 @@ hogehoge
 hogehoge
 ```
 
-### Custom Key Mapping
+#### Custom Key Mapping
 
 Disable the default mapping and set your own:
 
 ```vim
-nmap <C-t> <Plug>(comment-translate)
+nmap <C-t> <Plug>(rosetta-translate-comment)
 ```
+
+### Variable Name Completion
+
+Enable Japanese to English translation completion in insert mode:
+
+```vim
+let g:rosetta_enable_variable_completion = 1
+```
+
+Type Japanese text and press `<C-x><C-t>` to complete with snake_case English translation.
+
+#### Custom Completion Key
+
+Change the completion trigger key (default: `<C-x><C-t>`):
+
+```vim
+let g:rosetta_variable_complete_key = '<C-k>'
+```
+
+Example:
+- Type: `こんにちは世界`
+- Press: `<C-x><C-t>`
+- Result: `hello_world`
+
+## How It Works
+
+### Comment Translation
+1. Detects if the cursor is on a comment using Vim's syntax highlighting
+2. Extracts the comment text (supports multi-line comments)
+3. Sends the text to Google Translate API via `curl`
+4. Displays the translation in a popup window
+
+### Variable Name Completion
+1. Extracts Japanese text before cursor
+2. Translates to English using Google Translate API
+3. Converts to snake_case format
+4. Provides as completion candidate
 
 ## License
 
@@ -110,4 +163,4 @@ MIT
 
 ## Author
 
-Yasuhiro Matsumoto (a.k.a. mattn)
+Yasuhiro Matsumoto ([@mattn](https://github.com/mattn))

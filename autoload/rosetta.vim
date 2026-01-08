@@ -1,35 +1,32 @@
 function! s:nr2hex(nr) abort
-  let n = a:nr
-  let r = ''
-  while n
-    let r = '0123456789ABCDEF'[n % 16] . r
-    let n = n / 16
+  let l:n = a:nr
+  let l:r = ''
+  while l:n
+    let l:r = '0123456789ABCDEF'[l:n % 16] . l:r
+    let l:n = l:n / 16
   endwhile
-  return r
+  return l:r
 endfunction
 
-function! s:urlencode(items) abort
-  let ret = ''
-  let items = iconv(a:items, &enc, 'utf-8')
-  let len = strlen(items)
-  let i = 0
-  while i < len
-    let ch = items[i]
-    if ch =~# '[0-9A-Za-z-._~]'
-      let ret .= ch
+function! s:urlencode(text) abort
+  let l:ret = ''
+  let l:text = iconv(a:text, &enc, 'utf-8')
+  let l:len = strlen(l:text)
+  let l:i = 0
+  while l:i < l:len
+    let l:ch = l:text[i]
+    if l:ch =~# '[0-9A-Za-z-._~]'
+      let l:ret .= l:ch
     else
-      let ret .= '%' . substitute('0' . s:nr2hex(char2nr(ch)), '^.*\(..\)$', '\1', '')
+      let l:ret .= '%' . substitute('0' . s:nr2hex(char2nr(l:ch)), '^.*\(..\)$', '\1', '')
     endif
-    let i = i + 1
+    let l:i = l:i + 1
   endwhile
-  return ret
+  return l:ret
 endfunction
 
-function! comment_translate#comment_at_cursor() abort
-  return s:comment_at_cursor()
-endfunction
-
-function! s:comment_at_cursor() abort
+" Get comment text at cursor position
+function! s:get_comment_at_cursor() abort
   let l:line = line('.')
   let l:col = col('.')
   let l:synid = synID(l:line, l:col, 1)
@@ -115,7 +112,7 @@ function! s:comment_at_cursor() abort
     " Block comment /* ... */
     let l:comment = substitute(l:comment, '^/\*\+\s*', '', '')
     let l:comment = substitute(l:comment, '\s*\*\+/$', '', '')
-    if get(g:, 'comment_translate_strip_c_style', 0)
+    if get(g:, 'rosetta_strip_c_style', 0)
       " Strip leading * from each line
       let l:comment = substitute(l:comment, '\n\s*\*\+\s*', '\n', 'g')
     endif
@@ -133,7 +130,7 @@ function! s:comment_at_cursor() abort
     let l:comment = substitute(l:comment, '^\n', '', '')
   endif
 
-  if get(g:, 'comment_translate_trim_spaces', 1)
+  if get(g:, 'rosetta_trim_spaces', 1)
     let l:comment = substitute(l:comment, '\s\+', ' ', 'g')
   endif
   let l:comment = trim(l:comment)
@@ -141,28 +138,30 @@ function! s:comment_at_cursor() abort
   return l:comment
 endfunction
 
-function! s:translate_text(text, ...) abort
+function! s:translate_text_list(source_lang, target_lang, text) abort
   if empty(a:text)
-    return ''
+    return []
   endif
-  let l:target_lang = a:0 > 0 ? a:1 : get(g:, 'comment_translate_target_lang', 'ja')
-  let l:source_lang = 'auto'
   let l:encoded_text = s:urlencode(a:text)
-
-  let l:url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' . l:source_lang . '&tl=' . l:target_lang . '&dt=t&q=' . l:encoded_text
+  let l:url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' . a:source_lang . '&tl=' . a:target_lang . '&dt=t&q=' . l:encoded_text
   let l:response = system('curl -s "' . l:url . '"')
   if v:shell_error != 0
-    return 'Translation error'
+    throw 'Translation error'
   endif
+  return json_decode(l:response)
+endfunction
 
+function! s:translate_text(text, ...) abort
   try
-    let l:json = json_decode(l:response)
-    if type(l:json) != v:t_list || empty(l:json) || type(l:json[0]) != v:t_list
+    let l:source_lang = 'auto'
+    let l:target_lang = a:0 > 0 ? a:1 : get(g:, 'rosetta_target_lang', 'ja')
+    let l:items = s:translate_text_list(l:source_lang, l:target_lang, a:text)
+    if type(l:items) != v:t_list || empty(l:items) || type(l:items[0]) != v:t_list
       return 'Translation failed'
     endif
 
     let l:result = ''
-    for l:item in l:json[0]
+    for l:item in l:items[0]
       if type(l:item) == v:t_list && len(l:item) > 0 && type(l:item[0]) == v:t_string
         let l:result .= l:item[0]
       endif
@@ -179,7 +178,7 @@ function! s:show_translation_popup(text) abort
     call popup_close(s:popup_id)
   endif
 
-  let l:max_width = get(g:, 'comment_translate_popup_max_width', 80)
+  let l:max_width = get(g:, 'rosetta_popup_max_width', 80)
   let l:lines = split(a:text, '\n')
   let s:popup_id = popup_atcursor(l:lines, {
         \ 'moved': 'any',
@@ -191,8 +190,13 @@ function! s:show_translation_popup(text) abort
         \ })
 endfunction
 
-function! comment_translate#translate() abort
-  let l:comment = s:comment_at_cursor()
+" ============================================================================
+" Comment Translation Feature
+" ============================================================================
+
+" Main function: translate comment at cursor
+function! rosetta#translate_comment() abort
+  let l:comment = s:get_comment_at_cursor()
 
   if empty(l:comment)
     echo 'No comment under cursor'
@@ -203,21 +207,60 @@ function! comment_translate#translate() abort
   call s:show_translation_popup(l:translation)
 endfunction
 
-let s:last_comment = ''
+" Auto-translate comment on cursor hold
+let s:translate_comment_last = ''
 
-function! comment_translate#auto_translate() abort
-  let l:comment = s:comment_at_cursor()
+function! rosetta#translate_comment_auto() abort
+  let l:comment = s:get_comment_at_cursor()
   if empty(l:comment)
     if exists('s:popup_id') && popup_getpos(s:popup_id) != {}
       call popup_close(s:popup_id)
     endif
-    let s:last_comment = ''
+    let s:translate_comment_last = ''
     return
   endif
-  if l:comment ==# s:last_comment
+  if l:comment ==# s:translate_comment_last
     return
   endif
-  let s:last_comment = l:comment
+  let s:translate_comment_last = l:comment
   let l:translation = s:translate_text(l:comment)
   call s:show_translation_popup(l:translation)
+endfunction
+
+" ============================================================================
+" Name Completion Feature
+" ============================================================================
+
+function! s:to_snake_case(text) abort
+  let l:text = tolower(a:text)
+  let l:text = substitute(l:text, '[^a-z0-9]\+', '_', 'g')
+  let l:text = substitute(l:text, '^_\+\|_\+$', '', 'g')
+  return l:text
+endfunction
+
+function! rosetta#complete_name() abort
+  let l:line = getline('.')
+  let l:start = col('.') - 1
+  while l:start > 0 && l:line[l:start - 1] =~# '\S'
+    let l:start -= 1
+  endwhile
+  let l:base = strpart(l:line, l:start, col('.') - 1 - l:start)
+
+  let l:source_lang = get(g:, 'rosetta_target_lang', 'ja')
+  let l:target_lang = 'auto'
+  let l:items = s:translate_text_list(l:source_lang, l:target_lang, l:base)
+
+  let l:completions = []
+  let g:hoge = l:items
+  for l:item in l:items[0]
+    if type(l:item) == v:t_list && len(l:item) > 0 && type(l:item[0]) == v:t_string
+      let l:translation = l:item[0]
+      let l:snake = s:to_snake_case(l:translation)
+      if !empty(l:snake)
+        call add(l:completions, l:snake)
+      endif
+    endif
+  endfor
+  call complete(l:start + 1, l:completions)
+  return ''
 endfunction
