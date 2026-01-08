@@ -36,7 +36,7 @@ git clone https://github.com/mattn/vim-rosetta.git
 
 ## Requirements
 
-- Vim 8.1+ with `+popup` feature
+- Vim 8.1+ with `+popup` feature, or Neovim 0.4+
 - `curl` command
 
 ## Usage

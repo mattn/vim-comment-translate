@@ -146,10 +146,27 @@ function! s:translate_api(source_lang, target_lang, text, callback) abort
   let l:encoded_text = s:urlencode(a:text)
   let l:url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' . a:source_lang . '&tl=' . a:target_lang . '&dt=t&q=' . l:encoded_text
 
+  if has('nvim')
+    call s:translate_api_nvim(l:url, a:callback)
+  else
+    call s:translate_api_vim(l:url, a:callback)
+  endif
+endfunction
+
+function! s:translate_api_vim(url, callback) abort
   let l:out = []
-  let l:job = job_start(['curl', '-s', l:url], {
+  let l:job = job_start(['curl', '-s', a:url], {
         \ 'out_cb': {ch, msg -> add(l:out, msg)},
         \ 'close_cb': {ch -> a:callback(l:out)},
+        \ })
+endfunction
+
+function! s:translate_api_nvim(url, callback) abort
+  let l:out = []
+  let l:job = jobstart(['curl', '-s', a:url], {
+        \ 'on_stdout': {job, data, event -> extend(l:out, filter(data, 'v:val != ""'))},
+        \ 'on_exit': {job, code, event -> a:callback(l:out)},
+        \ 'stdout_buffered': v:true,
         \ })
 endfunction
 
@@ -183,6 +200,14 @@ function! s:parse_translation(out, callback) abort
 endfunction
 
 function! s:show_translation_popup(text) abort
+  if has('nvim')
+    call s:show_translation_nvim(a:text)
+  else
+    call s:show_translation_vim(a:text)
+  endif
+endfunction
+
+function! s:show_translation_vim(text) abort
   if exists('s:popup_id') && popup_getpos(s:popup_id) != {}
     call popup_close(s:popup_id)
   endif
@@ -197,6 +222,46 @@ function! s:show_translation_popup(text) abort
         \ 'wrap': 1,
         \ 'maxwidth': l:max_width,
         \ })
+endfunction
+
+function! s:show_translation_nvim(text) abort
+  if exists('s:popup_buf') && nvim_buf_is_valid(s:popup_buf)
+    if exists('s:popup_win') && nvim_win_is_valid(s:popup_win)
+      call nvim_win_close(s:popup_win, v:true)
+    endif
+  endif
+
+  let l:max_width = get(g:, 'rosetta_popup_max_width', 80)
+  let l:lines = split(a:text, '\n')
+
+  let s:popup_buf = nvim_create_buf(v:false, v:true)
+  call nvim_buf_set_lines(s:popup_buf, 0, -1, v:true, l:lines)
+
+  let l:width = min([l:max_width, max(map(copy(l:lines), 'strdisplaywidth(v:val)'))])
+  let l:height = len(l:lines)
+
+  let l:opts = {
+        \ 'relative': 'cursor',
+        \ 'row': 1,
+        \ 'col': 0,
+        \ 'width': l:width,
+        \ 'height': l:height,
+        \ 'style': 'minimal',
+        \ 'border': 'rounded',
+        \ }
+
+  let s:popup_win = nvim_open_win(s:popup_buf, v:false, l:opts)
+
+  augroup RosettaPopupClose
+    autocmd!
+    autocmd CursorMoved,CursorMovedI,InsertEnter * ++once call s:close_nvim_popup()
+  augroup END
+endfunction
+
+function! s:close_nvim_popup() abort
+  if exists('s:popup_win') && nvim_win_is_valid(s:popup_win)
+    call nvim_win_close(s:popup_win, v:true)
+  endif
 endfunction
 
 " ============================================================================
@@ -233,7 +298,9 @@ let s:translate_comment_last = ''
 function! rosetta#translate_comment_auto() abort
   let l:comment = s:get_comment_at_cursor()
   if empty(l:comment)
-    if exists('s:popup_id') && popup_getpos(s:popup_id) != {}
+    if has('nvim')
+      call s:close_nvim_popup()
+    elseif exists('s:popup_id') && popup_getpos(s:popup_id) != {}
       call popup_close(s:popup_id)
     endif
     let s:translate_comment_last = ''
@@ -324,12 +391,12 @@ function! rosetta#translate_buffer() range abort
     let l:lines = getline(a:firstline, a:lastline)
   endif
   let l:text = join(l:lines, "\n")
-  
+
   if empty(l:text)
     echo 'Buffer is empty'
     return
   endif
-  
+
   call s:translate_text(l:text, {translation -> s:show_translation_in_split(translation)})
 endfunction
 
