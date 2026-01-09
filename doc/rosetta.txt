@@ -17,8 +17,8 @@ CONTENTS                                                    *rosetta-contents*
 ==============================================================================
 INTRODUCTION                                            *rosetta-introduction*
 
-vim-rosetta is a Vim plugin that provides translation features for code
-comments and variable naming using Google Translate API. It supports:
+ vim-rosetta is a Vim plugin that provides translation features for code
+ comments and variable naming using Google Translate API or DeepL API. It supports:
 
 - Comment translation with popup display
 - Word/selection translation
@@ -116,11 +116,28 @@ To disable default mappings and define your own:
     xmap <C-w> <Plug>(rosetta-translate-at)
 <
 
-==============================================================================
-CONFIGURATION                                          *rosetta-configuration*
+ ==============================================================================
+ CONFIGURATION                                          *rosetta-configuration*
 
-g:rosetta_target_lang                                  *g:rosetta_target_lang*
-    Target language for translation. Default: 'ja' (Japanese)
+ g:rosetta_provider                                      *g:rosetta_provider*
+     Translation provider. Default: 'google'
+     Available options: 'google', 'deepl'
+ >
+     let g:rosetta_provider = 'deepl'
+ <
+     To use DeepL, you also need to set |g:rosetta_deepl_api_key|.
+
+ g:rosetta_deepl_api_key                          *g:rosetta_deepl_api_key*
+     API key for DeepL API. Required when |g:rosetta_provider| is 'deepl'.
+     Get your free API key from https://www.deepl.com/ja/pro-api#api-pricing
+     The Free plan allows 500,000 characters per month.
+ >
+     let g:rosetta_provider = 'deepl'
+     let g:rosetta_deepl_api_key = 'your-api-key-here'
+ <
+
+ g:rosetta_target_lang                                  *g:rosetta_target_lang*
+     Target language for translation. Default: 'ja' (Japanese)
 
     Supported language codes: 'en', 'ja', 'zh-CN', 'ko', 'es', 'fr', 'de', etc.
 >
@@ -168,12 +185,12 @@ g:rosetta_translate_comment_auto          *g:rosetta_translate_comment_auto*
 ==============================================================================
 FUNCTIONS                                                  *rosetta-functions*
 
-rosetta#translate_comment()                      *rosetta#translate_comment()*
-    Translate the comment under the cursor. This function:
-    1. Detects if cursor is on a comment using syntax highlighting
-    2. Extracts the comment text (supports multi-line)
-    3. Sends text to Google Translate API via curl (asynchronously)
-    4. Displays translation in a popup window
+ rosetta#translate_comment()                      *rosetta#translate_comment()*
+     Translate the comment under the cursor. This function:
+     1. Detects if cursor is on a comment using syntax highlighting
+     2. Extracts the comment text (supports multi-line)
+     3. Sends text to translation API (Google or DeepL) via curl (asynchronously)
+     4. Displays translation in a popup window
 
 rosetta#translate_at({select})                      *rosetta#translate_at()*
     Translate word or selection.
@@ -186,12 +203,12 @@ rosetta#translate_comment_auto()          *rosetta#translate_comment_auto()*
     Auto-translate comment on cursor hold. Used internally when
     |g:rosetta_translate_comment_auto| is enabled.
 
-rosetta#translate_buffer()                          *rosetta#translate_buffer()*
-    Translate the entire buffer or specified range. This function:
-    1. Extracts text from the current buffer (or range if specified)
-    2. Sends text to Google Translate API via curl (asynchronously)
-    3. Displays translation in a new vertically split window
-    4. The translation window is read-only and uses a scratch buffer
+ rosetta#translate_buffer()                          *rosetta#translate_buffer()*
+     Translate the entire buffer or specified range. This function:
+     1. Extracts text from the current buffer (or range if specified)
+     2. Sends text to translation API (Google or DeepL) via curl (asynchronously)
+     3. Displays translation in a new vertically split window
+     4. The translation window is read-only and uses a scratch buffer
 
     This function supports Vim's range feature.
     Examples: >
@@ -249,29 +266,29 @@ Custom Configuration~
 ==============================================================================
 HOW IT WORKS                                            *rosetta-how-it-works*
 
-Comment Translation~
-    1. Detect if cursor is on a comment using |synID()| and syntax name
-    2. Extract comment text by scanning adjacent lines with same syntax group
-    3. Strip comment markers (|//|, |/*|, |*/|, |#|, |"|)
-    4. Send to Google Translate API asynchronously via |job_start()|
-    5. Parse JSON response and display in popup window via |popup_atcursor()|
+ Comment Translation~
+     1. Detect if cursor is on a comment using |synID()| and syntax name
+     2. Extract comment text by scanning adjacent lines with same syntax group
+     3. Strip comment markers (|//|, |/*|, |*/|, |#|, |"|)
+     4. Send to translation API (Google or DeepL) asynchronously via |job_start()|
+     5. Parse JSON response and display in popup window via |popup_atcursor()|
 
-Word/Selection Translation~
-    1. Extract word via |expand('<cword>')| or visual selection
-    2. Send to Google Translate API asynchronously
-    3. Display translation in popup window
+ Word/Selection Translation~
+     1. Extract word via |expand('<cword>')| or visual selection
+     2. Send to translation API (Google or DeepL) asynchronously
+     3. Display translation in popup window
 
-Buffer Translation~
-    1. Extract all text from current buffer
-    2. Send to Google Translate API asynchronously via |job_start()|
-    3. Open new vertical split with translated text
-    4. Set as read-only scratch buffer
+ Buffer Translation~
+     1. Extract all text from current buffer
+     2. Send to translation API (Google or DeepL) asynchronously via |job_start()|
+     3. Open new vertical split with translated text
+     4. Set as read-only scratch buffer
 
-Variable Name Completion~
-    1. Extract text before cursor position
-    2. Send to Google Translate API asynchronously
-    3. Convert result to multiple naming conventions
-    4. Provide as completion candidates via |complete()|
+ Variable Name Completion~
+     1. Extract text before cursor position
+     2. Send to translation API (Google or DeepL) asynchronously
+     3. Convert result to multiple naming conventions
+     4. Provide as completion candidates via |complete()|
 
 All HTTP requests use `curl` with |job_start()| for non-blocking operation.
 

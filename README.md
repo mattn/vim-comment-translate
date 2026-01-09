@@ -92,6 +92,29 @@ let g:rosetta_translate_comment_auto = 1
 
 ## Configuration
 
+### Translation Provider
+
+Choose the translation provider (default: `google`):
+
+```vim
+let g:rosetta_provider = 'google'  " or 'deepl'
+```
+
+#### Using DeepL API
+
+To use DeepL API instead of Google Translate:
+
+1. Get a free API key from [DeepL API Free](https://www.deepl.com/ja/pro-api#api-pricing)
+   - Register for the Free plan (500,000 characters/month)
+   - Create an API key in your account settings
+
+2. Add the API key to your `.vimrc`:
+
+```vim
+let g:rosetta_provider = 'deepl'
+let g:rosetta_deepl_api_key = 'your-api-key-here'
+```
+
 ### Comment Translation Settings
 
 #### Target Language
@@ -171,31 +194,31 @@ Example:
 
 https://github.com/user-attachments/assets/5573ea0c-9e63-4fc5-9127-55de81b48861
 
-### Comment Translation
+ ### Comment Translation
 
-1. Detects if the cursor is on a comment using Vim's syntax highlighting
-2. Extracts the comment text (supports multi-line comments)
-3. Sends the text to Google Translate API via `curl`
-4. Displays the translation in a popup window
+ 1. Detects if the cursor is on a comment using Vim's syntax highlighting
+ 2. Extracts the comment text (supports multi-line comments)
+ 3. Sends the text to Translation API (Google or DeepL) via `curl`
+ 4. Displays the translation in a popup window
 
-### Word/Selection Translation
+ ### Word/Selection Translation
 
-1. Extracts the word under cursor or selected text
-2. Sends the text to Google Translate API via `curl`
-3. Displays the translation in a popup window
+ 1. Extracts the word under cursor or selected text
+ 2. Sends the text to Translation API (Google or DeepL) via `curl`
+ 3. Displays the translation in a popup window
 
-### Buffer Translation
+ ### Buffer Translation
 
-1. Extracts all text from the current buffer
-2. Sends the text to Google Translate API via `curl`
-3. Displays the translation in a new vertically split window
+ 1. Extracts all text from the current buffer
+ 2. Sends the text to Translation API (Google or DeepL) via `curl`
+ 3. Displays the translation in a new vertically split window
 
-### Variable Name Completion
+ ### Variable Name Completion
 
-1. Extracts Japanese text before cursor
-2. Translates to English using Google Translate API
-3. Converts to multiple naming formats (`snake_case`, `UPPER_CASE`, `camelCase`, `PascalCase`)
-4. Provides as completion candidates
+ 1. Extracts Japanese text before cursor
+ 2. Translates to English using Translation API (Google or DeepL)
+ 3. Converts to multiple naming formats (`snake_case`, `UPPER_CASE`, `camelCase`, `PascalCase`)
+ 4. Provides as completion candidates
 
 ## License
 

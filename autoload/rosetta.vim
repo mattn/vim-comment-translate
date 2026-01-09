@@ -143,6 +143,16 @@ function! s:translate_api(source_lang, target_lang, text, callback) abort
     call a:callback([])
     return
   endif
+
+  let l:provider = get(g:, 'rosetta_provider', 'google')
+  if l:provider ==# 'deepl'
+    call s:translate_api_deepl(a:source_lang, a:target_lang, a:text, a:callback)
+  else
+    call s:translate_api_google(a:source_lang, a:target_lang, a:text, a:callback)
+  endif
+endfunction
+
+function! s:translate_api_google(source_lang, target_lang, text, callback) abort
   let l:encoded_text = s:urlencode(a:text)
   let l:url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' . a:source_lang . '&tl=' . a:target_lang . '&dt=t&q=' . l:encoded_text
 
@@ -150,6 +160,26 @@ function! s:translate_api(source_lang, target_lang, text, callback) abort
     call s:translate_api_nvim(l:url, a:callback)
   else
     call s:translate_api_vim(l:url, a:callback)
+  endif
+endfunction
+
+function! s:translate_api_deepl(source_lang, target_lang, text, callback) abort
+  let l:api_key = get(g:, 'rosetta_deepl_api_key', $DEEPL_API_KEY)
+  if empty(l:api_key)
+    call a:callback(['Error: g:rosetta_deepl_api_key is not set'])
+    return
+  endif
+
+  let l:url = 'https://api-free.deepl.com/v2/translate'
+  let l:data = json_encode({'text': [a:text], 'target_lang': toupper(a:target_lang)})
+  if a:source_lang !=# 'auto'
+    let l:data = json_encode({'text': [a:text], 'target_lang': toupper(a:target_lang), 'source_lang': toupper(a:source_lang)})
+  endif
+
+  if has('nvim')
+    call s:translate_api_deepl_nvim(l:url, l:data, l:api_key, a:callback)
+  else
+    call s:translate_api_deepl_vim(l:url, l:data, l:api_key, a:callback)
   endif
 endfunction
 
@@ -170,11 +200,43 @@ function! s:translate_api_nvim(url, callback) abort
         \ })
 endfunction
 
+function! s:translate_api_deepl_vim(url, data, api_key, callback) abort
+  let l:out = []
+  let l:job = job_start([
+        \ 'curl', '-s', '-X', 'POST', a:url,
+        \ '-H', 'Authorization: DeepL-Auth-Key ' . a:api_key,
+        \ '-H', 'Content-Type: application/json',
+        \ '-d', a:data
+        \ ], {
+        \ 'out_cb': {ch, msg -> add(l:out, msg)},
+        \ 'close_cb': {ch -> a:callback(l:out)},
+        \ })
+endfunction
+
+function! s:translate_api_deepl_nvim(url, data, api_key, callback) abort
+  let l:out = []
+  let l:job = jobstart([
+        \ 'curl', '-s', '-X', 'POST', a:url,
+        \ '-H', 'Authorization: DeepL-Auth-Key ' . a:api_key,
+        \ '-H', 'Content-Type: application/json',
+        \ '-d', a:data
+        \ ], {
+        \ 'on_stdout': {job, data, event -> extend(l:out, filter(data, 'v:val != ""'))},
+        \ 'on_exit': {job, code, event -> a:callback(l:out)},
+        \ 'stdout_buffered': v:true,
+        \ })
+endfunction
+
 function! s:translate_text(text, callback, ...) abort
   let l:source_lang = 'auto'
   let l:target_lang = a:0 > 0 ? a:1 : get(g:, 'rosetta_target_lang', 'ja')
 
-  call s:translate_api(l:source_lang, l:target_lang, a:text, {out -> s:parse_translation(out, a:callback)})
+  let l:provider = get(g:, 'rosetta_provider', 'google')
+  if l:provider ==# 'deepl'
+    call s:translate_api(l:source_lang, l:target_lang, a:text, {out -> s:parse_translation_deepl(out, a:callback)})
+  else
+    call s:translate_api(l:source_lang, l:target_lang, a:text, {out -> s:parse_translation(out, a:callback)})
+  endif
 endfunction
 
 function! s:parse_translation(out, callback) abort
@@ -193,6 +255,29 @@ function! s:parse_translation(out, callback) abort
       endif
     endfor
 
+    call a:callback(empty(l:result) ? 'Translation failed' : l:result)
+  catch
+    call a:callback('Translation parse error')
+  endtry
+endfunction
+
+function! s:parse_translation_deepl(out, callback) abort
+  try
+    let l:response = join(a:out, '')
+    let l:items = json_decode(l:response)
+
+    if type(l:items) != v:t_dict || !has_key(l:items, 'translations')
+      call a:callback('Translation failed')
+      return
+    endif
+
+    let l:translations = l:items['translations']
+    if empty(l:translations)
+      call a:callback('Translation failed')
+      return
+    endif
+
+    let l:result = l:translations[0]['text']
     call a:callback(empty(l:result) ? 'Translation failed' : l:result)
   catch
     call a:callback('Translation parse error')
@@ -349,7 +434,12 @@ function! rosetta#complete_name() abort
   let l:source_lang = get(g:, 'rosetta_target_lang', 'ja')
   let l:target_lang = 'auto'
 
-  call s:translate_api(l:source_lang, l:target_lang, l:base, {out -> s:complete_name_callback(out, l:start)})
+  let l:provider = get(g:, 'rosetta_provider', 'google')
+  if l:provider ==# 'deepl'
+    call s:translate_api(l:source_lang, l:target_lang, l:base, {out -> s:complete_name_callback_deepl(out, l:start)})
+  else
+    call s:translate_api(l:source_lang, l:target_lang, l:base, {out -> s:complete_name_callback(out, l:start)})
+  endif
   return ''
 endfunction
 
@@ -375,6 +465,36 @@ function! s:complete_name_callback(out, start) abort
         call add(l:completions, s:to_camel_case(l:translation, 1))
       endif
     endfor
+    call complete(a:start + 1, uniq(l:completions))
+  catch
+  endtry
+endfunction
+
+function! s:complete_name_callback_deepl(out, start) abort
+  try
+    let l:response = join(a:out, '')
+    let l:items = json_decode(l:response)
+
+    if type(l:items) != v:t_dict || !has_key(l:items, 'translations')
+      return
+    endif
+
+    let l:translations = l:items['translations']
+    if empty(l:translations)
+      return
+    endif
+
+    let l:translation = l:translations[0]['text']
+    if empty(l:translation)
+      return
+    endif
+
+    let l:completions = []
+    let l:snake = s:to_snake_case(l:translation)
+    call add(l:completions, l:snake)
+    call add(l:completions, toupper(l:snake))
+    call add(l:completions, s:to_camel_case(l:translation, 0))
+    call add(l:completions, s:to_camel_case(l:translation, 1))
     call complete(a:start + 1, uniq(l:completions))
   catch
   endtry
